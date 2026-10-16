@@ -1,0 +1,27 @@
+# Local development dependencies. The API itself runs on your machine with
+# `go run ./cmd/api` so you get fast rebuilds and a normal debugger.
+name: ai-interview-platform
+
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: coach
+      POSTGRES_PASSWORD: coach_dev_password
+      POSTGRES_DB: coach_dev
+    ports:
+      # Host port 5433 so this does not collide with another local Postgres
+      # (for example voltify-api's database on 5432).
+      - "5433:5432"
+    volumes:
+      # Postgres 18+ images moved the data directory: mount the parent
+      # /var/lib/postgresql, not /var/lib/postgresql/data as in older guides.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U coach -d coach_dev"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:

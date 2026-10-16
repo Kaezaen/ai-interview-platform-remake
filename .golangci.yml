@@ -1,0 +1,35 @@
+# golangci-lint v2 configuration. Run locally with: golangci-lint run
+version: "2"
+
+linters:
+  # "standard" = errcheck, govet, ineffassign, staticcheck, unused.
+  default: standard
+  enable:
+    - bodyclose # HTTP response bodies must be closed
+    - errorlint # use errors.Is/As instead of == on wrapped errors
+    - gosec # common security mistakes
+    - misspell
+    - noctx # outgoing HTTP requests must carry a context
+    - sloglint # consistent log/slog usage
+    - unconvert
+    - usestdlibvars # http.MethodGet instead of "GET", etc.
+  settings:
+    sloglint:
+      # key-value pairs everywhere: logger.Info("msg", "key", value)
+      kv-only: true
+  exclusions:
+    rules:
+      # httptest.NewRequest already attaches context.Background(); requiring
+      # an explicit context in tests adds noise without catching bugs.
+      - path: _test\.go
+        linters:
+          - noctx
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/Kaezaen/ai-interview-platform-remake
