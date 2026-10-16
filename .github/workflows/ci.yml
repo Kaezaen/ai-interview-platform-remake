@@ -12,6 +12,24 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # A real PostgreSQL for database tests: the same major version as
+    # docker-compose.yml, reachable on localhost:5432.
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: coach
+          POSTGRES_PASSWORD: coach_test_password
+          POSTGRES_DB: coach_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U coach -d coach_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://coach:coach_test_password@localhost:5432/coach_test?sslmode=disable
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -20,6 +38,20 @@ jobs:
           check-latest: true # always the newest 1.27 patch (security fixes)
       - name: Test (with race detector)
         run: go test -race -count=1 ./...
+
+      # The Go tests apply migrations with their own small runner. This step
+      # proves the real migrate CLI (what you run locally and in production)
+      # accepts the same files, in both directions.
+      - name: Install migrate CLI (checksum-verified)
+        run: |
+          curl -fsSL -o migrate.tgz https://github.com/golang-migrate/migrate/releases/download/v4.20.1/migrate.linux-amd64.tar.gz
+          echo "b1e13121d4178b7804a9fb29dca62d57b732390f7e5ae33f2cd65e9b192e1bd4  migrate.tgz" | sha256sum -c -
+          tar xzf migrate.tgz migrate
+      - name: Migrations apply up, down, and up again
+        run: |
+          ./migrate -path db/migrations -database "$TEST_DATABASE_URL" up
+          ./migrate -path db/migrations -database "$TEST_DATABASE_URL" down -all
+          ./migrate -path db/migrations -database "$TEST_DATABASE_URL" up
 
   lint:
     runs-on: ubuntu-latest
@@ -32,3 +64,15 @@ jobs:
       - uses: golangci/golangci-lint-action@v9
         with:
           version: v2.14.0 # pinned: a new linter release must not break CI by surprise
+
+  sqlc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: sqlc-dev/setup-sqlc@v5
+        with:
+          sqlc-version: "1.31.1"
+      # Fails when someone edits db/queries or db/migrations but forgets to
+      # run `sqlc generate`, or hand-edits the generated code.
+      - name: Generated code matches the SQL
+        run: sqlc diff

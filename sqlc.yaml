@@ -1,0 +1,24 @@
+# sqlc turns the SQL in db/queries into type-safe Go in internal/store.
+# Regenerate after changing db/queries or db/migrations:  sqlc generate
+# CI fails if the committed code is out of date (sqlc diff).
+version: "2"
+sql:
+  - engine: postgresql
+    # sqlc reads the up migrations to learn the schema; it ignores .down.sql.
+    schema: db/migrations
+    queries: db/queries
+    gen:
+      go:
+        package: store
+        out: internal/store
+        sql_package: pgx/v5
+        # :many queries return [] instead of nil when nothing matches, so
+        # handlers encode an empty JSON array rather than null.
+        emit_empty_slices: true
+        overrides:
+          # Without these, sqlc uses pgtype.UUID and pgtype.Timestamptz,
+          # which leak database types into every layer above.
+          - db_type: uuid
+            go_type: github.com/google/uuid.UUID
+          - db_type: timestamptz
+            go_type: time.Time
