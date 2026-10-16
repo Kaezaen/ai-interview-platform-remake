@@ -1,0 +1,19 @@
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Build output
+/bin/
+*.exe
+*.test
+
+# Test and profiling output
+*.out
+coverage.*
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
