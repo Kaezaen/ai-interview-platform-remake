@@ -17,7 +17,10 @@ Coding agents (Claude Code or any other) are allowed to do one thing here:
 
 ## After every change
 
-- Run `gofmt -l .`, `go vet ./...`, and `go test -race ./...`.
+- Run `gofmt -l .`, `go vet ./...`, and `go test ./...` (add `-race` where a
+  C compiler is available). Set `TEST_DATABASE_URL` first, or the database
+  tests are skipped and prove nothing (see README › Testing).
+- If you touched `db/queries` or `db/migrations`, run `sqlc generate`.
 - Report what you changed, why it fixes the problem, and the command output.
 - Never claim something works without having run it.
 
@@ -32,3 +35,14 @@ Coding agents (Claude Code or any other) are allowed to do one thing here:
   Use key-value pairs: `logger.Info("msg", "key", value)`.
 - Wrap errors with context: `fmt.Errorf("doing X: %w", err)`.
 - Configuration comes only from `internal/platform/config`.
+
+## Database rules
+
+- Never edit a migration in `db/migrations` that exists on `main`. A fix
+  to the schema is a new migration, and creating one is a new file, so it
+  is the owner's job (rule 2).
+- Never edit generated code in `internal/store` (`db.go`, `models.go`,
+  `*.sql.go`). Change the SQL in `db/queries`, then run `sqlc generate`.
+- Map database errors by constraint name with
+  `database.IsUniqueViolation` / `database.IsCheckViolation`, never by
+  matching error message text.
